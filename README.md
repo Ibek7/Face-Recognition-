@@ -28,3 +28,4 @@ python yolo_batch.py
 
 - The script uses the default YOLOv8n (nano) model for speed and simplicity.
 - You can change the model or parameters in the script as needed.
+# Minor update for batch inference
