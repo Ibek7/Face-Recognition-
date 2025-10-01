@@ -1,0 +1,1 @@
+Please place your image files in this directory.

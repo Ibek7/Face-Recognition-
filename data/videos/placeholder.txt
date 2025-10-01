@@ -1,0 +1,1 @@
+Please place your video files in this directory.
