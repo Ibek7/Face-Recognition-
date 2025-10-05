@@ -16,51 +16,34 @@ This project is a face recognition application that uses the YOLO (You Only Look
 - `requirements.txt`: Python dependencies.
 - `.gitignore`: Specifies intentionally untracked files to ignore.
 
-## Setup
+## Quickstart
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Ibek7/Face-Recognition-.git
-   ```
-2. Install the dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-### Local Development
-
-To run the script locally, you can use the following command:
+### Local (venv)
 
 ```bash
-python src/yolo_batch.py --input-dir data/images/
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+python src/yolo_batch.py --input-dir data/images --project runs/detect --name batch
 ```
 
 ### Docker
 
-To build and run the application using Docker, use the following commands:
-
-1.  **Build the Docker image:**
-    ```bash
-    docker build -t face-recognition .
-    ```
-
-2.  **Run the Docker container:**
-    ```bash
-    docker run -v $(pwd)/data:/app/data -v $(pwd)/runs:/app/runs face-recognition
-    ```
+```bash
+docker build -t face-recognition:latest .
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/runs:/app/runs" face-recognition:latest
+```
 
 ### Docker Compose
 
-For a more streamlined experience with Docker, you can use Docker Compose:
-
 ```bash
-docker-compose up
+docker compose up --build
 ```
 
-This command will build the image (if it doesn't exist) and run the container, automatically mounting the necessary volumes.
+## Notes
 
+- Place images under `data/images`.
+- Results will be saved to `runs/detect/batch` by default.
 
 ## Requirements
 
