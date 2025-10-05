@@ -112,3 +112,15 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Ultralytics runs output
+runs/
+
+# Large data except placeholders
+# Keep placeholder files but ignore other content
+# Images
+/data/images/*
+!/data/images/placeholder.txt
+# Videos
+/data/videos/*
+!/data/videos/placeholder.txt
