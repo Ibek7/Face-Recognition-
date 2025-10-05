@@ -1,6 +1,13 @@
 import argparse
+import logging
 import os
 from ultralytics import YOLO
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def get_image_files(data_dir):
     """
@@ -20,7 +27,7 @@ def process_images(image_files, model_name='yolov8n.pt', project_dir='runs/detec
     project_dir/name controls the Ultralytics output directory.
     """
     if not image_files:
-        print('No images to process.')
+        logger.warning('No images to process.')
         return
 
     model = YOLO(model_name)
@@ -29,7 +36,7 @@ def process_images(image_files, model_name='yolov8n.pt', project_dir='runs/detec
     # This will save results under {project_dir}/{name}
     model.predict(image_files, save=True, project=project_dir, name=name)
 
-    print(f"Processed {len(image_files)} images. Results saved to '{project_dir}/{name}'.")
+    logger.info("Processed %d images. Results saved to '%s/%s'.", len(image_files), project_dir, name)
 
 
 
@@ -46,13 +53,13 @@ def main():
     args = parser.parse_args()
 
     if not os.path.isdir(args.input_dir):
-        print(f"Error: Input directory not found at '{args.input_dir}'")
+        logger.error("Input directory not found at '%s'", args.input_dir)
         return
 
     image_files = get_image_files(args.input_dir)
 
     if not image_files:
-        print(f'No images found in {args.input_dir}/')
+        logger.warning('No images found in %s/', args.input_dir)
         return
 
     process_images(image_files, args.model, args.project, args.name)
