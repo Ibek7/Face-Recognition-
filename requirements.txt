@@ -4,3 +4,29 @@ pillow
 numpy
 torch
 torchvision
+# Face recognition dependencies
+face-recognition
+dlib
+# Scientific computing
+scipy
+scikit-learn
+# Data handling
+pandas
+# Visualization
+matplotlib
+seaborn
+# CLI enhancements
+click
+tqdm
+# Configuration
+pyyaml
+# Testing
+pytest
+pytest-cov
+# API server
+fastapi
+uvicorn
+# Database
+sqlalchemy
+# Async support
+aiofiles
