@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Dashboard</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.26.0/plotly.min.js"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1>🎯 Face Recognition Dashboard</h1>
+                <div class="connection-status">
+                    <span id="connectionStatus" class="status-indicator offline">Disconnected</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <div class="dashboard-main">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <ul>
+                        <li><a href="#" data-tab="live-feed" class="nav-link active">📹 Live Feed</a></li>
+                        <li><a href="#" data-tab="analytics" class="nav-link">📊 Analytics</a></li>
+                        <li><a href="#" data-tab="database" class="nav-link">👥 Database</a></li>
+                        <li><a href="#" data-tab="settings" class="nav-link">⚙️ Settings</a></li>
+                        <li><a href="#" data-tab="logs" class="nav-link">📋 Logs</a></li>
+                    </ul>
+                </nav>
+                
+                <!-- Quick Stats -->
+                <div class="quick-stats">
+                    <h3>Quick Stats</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Faces</span>
+                        <span class="stat-value" id="totalFaces">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Recognized</span>
+                        <span class="stat-value" id="recognizedFaces">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">FPS</span>
+                        <span class="stat-value" id="currentFPS">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Accuracy</span>
+                        <span class="stat-value" id="accuracy">0%</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <main class="content-area">
+                <!-- Live Feed Tab -->
+                <div class="tab-content active" id="live-feed">
+                    <div class="tab-header">
+                        <h2>🔴 Live Face Recognition Feed</h2>
+                        <div class="feed-controls">
+                            <button id="startFeed" class="btn btn-primary">Start Feed</button>
+                            <button id="stopFeed" class="btn btn-secondary">Stop Feed</button>
+                            <button id="captureFrame" class="btn btn-info">Capture Frame</button>
+                        </div>
+                    </div>
+                    
+                    <div class="feed-container">
+                        <div class="video-section">
+                            <canvas id="videoCanvas" width="640" height="480"></canvas>
+                            <div class="video-overlay">
+                                <div class="overlay-info">
+                                    <span id="faceCount">Faces: 0</span>
+                                    <span id="processingTime">Processing: 0ms</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="recognition-results">
+                            <h3>Recognition Results</h3>
+                            <div id="recognitionList" class="results-list">
+                                <!-- Results will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Tab -->
+                <div class="tab-content" id="analytics">
+                    <div class="tab-header">
+                        <h2>📈 Analytics & Performance</h2>
+                        <div class="analytics-controls">
+                            <select id="timeRange">
+                                <option value="1h">Last Hour</option>
+                                <option value="6h">Last 6 Hours</option>
+                                <option value="24h">Last 24 Hours</option>
+                                <option value="7d">Last 7 Days</option>
+                            </select>
+                            <button id="exportData" class="btn btn-secondary">Export Data</button>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-grid">
+                        <div class="chart-container">
+                            <h3>Recognition Rate Over Time</h3>
+                            <canvas id="recognitionChart"></canvas>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h3>Processing Performance</h3>
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h3>Face Detection Distribution</h3>
+                            <div id="distributionChart"></div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h3>System Metrics</h3>
+                            <canvas id="systemChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Tab -->
+                <div class="tab-content" id="database">
+                    <div class="tab-header">
+                        <h2>👥 Face Database Management</h2>
+                        <div class="database-controls">
+                            <button id="addPerson" class="btn btn-primary">Add Person</button>
+                            <button id="importDatabase" class="btn btn-secondary">Import Database</button>
+                            <button id="exportDatabase" class="btn btn-secondary">Export Database</button>
+                        </div>
+                    </div>
+                    
+                    <div class="database-content">
+                        <div class="search-section">
+                            <input type="text" id="searchDatabase" placeholder="Search by name or ID..." class="search-input">
+                            <div class="filter-options">
+                                <label>
+                                    <input type="checkbox" id="filterActive"> Show only active
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="filterRecent"> Recently added
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="database-grid">
+                            <div id="personList" class="person-grid">
+                                <!-- Person cards will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div class="tab-content" id="settings">
+                    <div class="tab-header">
+                        <h2>⚙️ System Configuration</h2>
+                        <div class="settings-controls">
+                            <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+                            <button id="resetSettings" class="btn btn-warning">Reset to Defaults</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-grid">
+                        <div class="settings-section">
+                            <h3>Camera Settings</h3>
+                            <div class="setting-item">
+                                <label for="cameraSource">Camera Source:</label>
+                                <select id="cameraSource">
+                                    <option value="0">Default Camera</option>
+                                    <option value="1">External Camera</option>
+                                    <option value="rtsp">RTSP Stream</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label for="resolution">Resolution:</label>
+                                <select id="resolution">
+                                    <option value="640x480">640x480</option>
+                                    <option value="1280x720">1280x720 (HD)</option>
+                                    <option value="1920x1080">1920x1080 (Full HD)</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label for="fps">Frame Rate:</label>
+                                <input type="range" id="fps" min="1" max="60" value="30">
+                                <span id="fpsValue">30</span> FPS
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3>Recognition Settings</h3>
+                            <div class="setting-item">
+                                <label for="confidenceThreshold">Confidence Threshold:</label>
+                                <input type="range" id="confidenceThreshold" min="0" max="100" value="70">
+                                <span id="confidenceValue">70</span>%
+                            </div>
+                            <div class="setting-item">
+                                <label for="maxFaces">Max Faces per Frame:</label>
+                                <input type="number" id="maxFaces" min="1" max="20" value="10">
+                            </div>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="enableGPU" checked> Enable GPU Acceleration
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3>Notification Settings</h3>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="enableAlerts"> Enable Alerts
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="emailNotifications"> Email Notifications
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label for="alertSound">Alert Sound:</label>
+                                <select id="alertSound">
+                                    <option value="none">None</option>
+                                    <option value="beep">Beep</option>
+                                    <option value="chime">Chime</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3>Data & Privacy</h3>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="enableLogging"> Enable Logging
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="anonymizeData"> Anonymize Personal Data
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label for="dataRetention">Data Retention (days):</label>
+                                <input type="number" id="dataRetention" min="1" max="365" value="30">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Tab -->
+                <div class="tab-content" id="logs">
+                    <div class="tab-header">
+                        <h2>📋 System Logs</h2>
+                        <div class="log-controls">
+                            <select id="logLevel">
+                                <option value="all">All Levels</option>
+                                <option value="error">Error</option>
+                                <option value="warning">Warning</option>
+                                <option value="info">Info</option>
+                                <option value="debug">Debug</option>
+                            </select>
+                            <button id="clearLogs" class="btn btn-warning">Clear Logs</button>
+                            <button id="exportLogs" class="btn btn-secondary">Export Logs</button>
+                        </div>
+                    </div>
+                    
+                    <div class="logs-container">
+                        <div id="logOutput" class="log-output">
+                            <!-- Log entries will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="addPersonModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Person</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addPersonForm">
+                    <div class="form-group">
+                        <label for="personName">Name:</label>
+                        <input type="text" id="personName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="personEmail">Email:</label>
+                        <input type="email" id="personEmail">
+                    </div>
+                    <div class="form-group">
+                        <label for="personPhoto">Photo:</label>
+                        <input type="file" id="personPhoto" accept="image/*" required>
+                        <div id="photoPreview" class="photo-preview"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="personNotes">Notes:</label>
+                        <textarea id="personNotes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelAdd">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="confirmAdd">Add Person</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container">
+        <!-- Notifications will be inserted here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="dashboard.js"></script>
+</body>
+</html>
