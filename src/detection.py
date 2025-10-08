@@ -36,3 +36,36 @@ class FaceDetector:
             minSize=(30, 30)
         )
         return [(int(x), int(y), int(w), int(h)) for x, y, w, h in faces]
+    
+    def extract_faces(self, image: np.ndarray, padding: float = 0.2) -> List[np.ndarray]:
+        """
+        Extract face regions from image with optional padding.
+        
+        Args:
+            image: Input image
+            padding: Padding around face (as fraction of face size)
+            
+        Returns:
+            List of extracted face images
+        """
+        faces = self.detect_faces(image)
+        extracted = []
+        
+        h, w = image.shape[:2]
+        
+        for x, y, fw, fh in faces:
+            # Add padding
+            pad_w = int(fw * padding)
+            pad_h = int(fh * padding)
+            
+            # Calculate padded coordinates
+            x1 = max(0, x - pad_w)
+            y1 = max(0, y - pad_h)
+            x2 = min(w, x + fw + pad_w)
+            y2 = min(h, y + fh + pad_h)
+            
+            face_img = image[y1:y2, x1:x2]
+            if face_img.size > 0:
+                extracted.append(face_img)
+                
+        return extracted
