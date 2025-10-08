@@ -4,3 +4,46 @@ pillow
 numpy
 torch
 torchvision
+# Face recognition dependencies
+face-recognition
+dlib
+# Scientific computing
+scipy
+scikit-learn
+# Data handling
+pandas
+# Visualization
+matplotlib
+seaborn
+# CLI enhancements
+click
+tqdm
+# Configuration
+pyyaml
+# Testing dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+
+# API server dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# Deep learning dependencies
+torch==2.1.1
+torchvision==0.16.1
+scikit-learn==1.3.2
+
+# Data augmentation dependencies
+albumentations==1.3.1
+imgaug==0.4.0
+Pillow==10.1.0
+# API server
+fastapi
+uvicorn
+# Database
+sqlalchemy
+# Async support
+aiofiles

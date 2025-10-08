@@ -1,0 +1,236 @@
+name: Face Recognition CI/CD
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libopencv-dev \
+          python3-opencv \
+          libdlib-dev \
+          cmake \
+          libboost-all-dev
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov flake8 black isort
+        pip install -r requirements.txt
+
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Check code formatting with black
+      run: |
+        black --check src tests scripts
+
+    - name: Check import sorting with isort
+      run: |
+        isort --check-only src tests scripts
+
+    - name: Run unit tests
+      run: |
+        python -m pytest tests/ -v --cov=src --cov-report=xml --cov-report=html
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libopencv-dev \
+          python3-opencv \
+          libdlib-dev \
+          cmake
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create test data
+      run: |
+        mkdir -p test_data
+        python -c "
+import cv2
+import numpy as np
+# Create synthetic test images
+for i in range(3):
+    img = np.random.randint(0, 255, (300, 300, 3), dtype=np.uint8)
+    cv2.imwrite(f'test_data/test_{i}.jpg', img)
+"
+
+    - name: Test CLI functionality
+      run: |
+        # Test basic CLI commands (without camera)
+        python scripts/face_cli.py setup --database test.db
+        python scripts/face_cli.py add-person --name "Test Person" --description "Test user"
+        python scripts/face_cli.py list --database test.db
+
+    - name: Test batch processing
+      run: |
+        python scripts/batch_detect.py --input-dir test_data --output-dir test_output
+
+    - name: Test embedding database
+      run: |
+        python scripts/embedding_db.py create --input-dir test_data --output-db test_embeddings.db
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run security scan with bandit
+      run: |
+        pip install bandit[toml]
+        bandit -r src -f json -o bandit-report.json
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: bandit-report.json
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [test, integration-test]
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build Docker image
+      run: |
+        docker build -t face-recognition:latest .
+
+    - name: Test Docker image
+      run: |
+        # Test that the container can start
+        docker run --rm face-recognition:latest python --version
+
+  performance-benchmark:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopencv-dev python3-opencv
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create benchmark data
+      run: |
+        mkdir -p benchmark_data
+        python -c "
+import cv2
+import numpy as np
+# Create more realistic test images for benchmarking
+for i in range(10):
+    img = np.random.randint(0, 255, (640, 480, 3), dtype=np.uint8)
+    # Add some face-like features
+    cv2.circle(img, (320, 240), 100, (200, 180, 160), -1)
+    cv2.circle(img, (300, 220), 15, (0, 0, 0), -1)
+    cv2.circle(img, (340, 220), 15, (0, 0, 0), -1)
+    cv2.imwrite(f'benchmark_data/bench_{i}.jpg', img)
+"
+
+    - name: Run performance benchmark
+      run: |
+        python scripts/benchmark.py --test-images benchmark_data --output-dir benchmark_results
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: benchmark_results/
+
+  deploy-docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, integration-test]
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install documentation dependencies
+      run: |
+        pip install sphinx sphinx-rtd-theme
+
+    - name: Generate documentation
+      run: |
+        mkdir -p docs
+        echo "# Face Recognition System Documentation" > docs/index.md
+        echo "## Overview" >> docs/index.md
+        echo "Comprehensive face recognition system with real-time capabilities." >> docs/index.md
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
