@@ -181,26 +181,130 @@ async def root():
     return {
         "message": "Face Recognition API",
         "version": "1.0.0",
+        "status": "operational",
         "endpoints": {
-            "persons": "/persons",
-            "recognize": "/recognize",
-            "upload": "/upload",
-            "stats": "/stats",
-            "health": "/health"
-        }
+            "documentation": "/docs",
+            "health": {
+                "general": "/health",
+                "liveness": "/health/live",
+                "readiness": "/health/ready"
+            },
+            "persons": {
+                "list": "/persons",
+                "create": "/persons",
+                "add_image": "/persons/{person_id}/images"
+            },
+            "recognition": {
+                "recognize": "/recognize",
+                "upload": "/upload"
+            },
+            "metrics": {
+                "stats": "/stats",
+                "performance": "/performance/metrics"
+            }
+        },
+        "documentation": "Visit /docs for interactive API documentation"
+    }
+
+@app.get("/version")
+async def get_version():
+    """Get API version and build information."""
+    return {
+        "version": "1.0.0",
+        "build_date": "2025-11-02",
+        "python_version": sys.version.split()[0],
+        "status": "stable"
     }
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    uptime = datetime.now() - server_start_time
-    sys_metrics = performance_monitor.get_system_metrics_summary()
+async def health_check(db: DatabaseManager = Depends(get_database)):
+    """
+    Comprehensive health check endpoint.
     
-    return {
+    Returns system status, database connectivity, uptime, and resource usage.
+    """
+    health_status = {
         "status": "healthy",
-        "uptime": str(uptime),
-        "system_metrics": sys_metrics
+        "timestamp": datetime.now().isoformat(),
+        "uptime": str(datetime.now() - server_start_time),
+        "version": "1.0.0"
     }
+    
+    # Check database connectivity
+    try:
+        db.get_recognition_stats()
+        health_status["database"] = {
+            "status": "connected",
+            "type": "operational"
+        }
+    except Exception as e:
+        health_status["status"] = "degraded"
+        health_status["database"] = {
+            "status": "error",
+            "error": str(e)
+        }
+        logger.error(f"Database health check failed: {str(e)}")
+    
+    # Check embedding manager
+    try:
+        embedding_mgr = get_embedding_manager()
+        health_status["embedding_manager"] = {
+            "status": "ready",
+            "encoder_type": embedding_mgr.encoder_type if hasattr(embedding_mgr, 'encoder_type') else "unknown"
+        }
+    except Exception as e:
+        health_status["status"] = "degraded"
+        health_status["embedding_manager"] = {
+            "status": "error",
+            "error": str(e)
+        }
+        logger.error(f"Embedding manager health check failed: {str(e)}")
+    
+    # Get system metrics
+    try:
+        sys_metrics = performance_monitor.get_system_metrics_summary()
+        health_status["system_metrics"] = sys_metrics
+    except Exception as e:
+        logger.warning(f"Could not retrieve system metrics: {str(e)}")
+        health_status["system_metrics"] = {"status": "unavailable"}
+    
+    return health_status
+
+@app.get("/health/live")
+async def liveness_check():
+    """
+    Kubernetes liveness probe endpoint.
+    
+    Returns 200 if the application is running.
+    """
+    return {"status": "alive", "timestamp": datetime.now().isoformat()}
+
+@app.get("/health/ready")
+async def readiness_check(db: DatabaseManager = Depends(get_database)):
+    """
+    Kubernetes readiness probe endpoint.
+    
+    Returns 200 if the application is ready to serve requests.
+    """
+    try:
+        # Verify critical components
+        db.get_recognition_stats()
+        embedding_mgr = get_embedding_manager()
+        
+        return {
+            "status": "ready",
+            "timestamp": datetime.now().isoformat(),
+            "components": {
+                "database": "ready",
+                "embedding_manager": "ready"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Readiness check failed: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Service not ready: {str(e)}"
+        )
 
 @app.get("/stats", response_model=SystemStats)
 async def get_system_stats(db: DatabaseManager = Depends(get_database)):
