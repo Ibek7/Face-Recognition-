@@ -113,6 +113,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Ruff
+.ruff_cache/
+
 # Ultralytics runs output
 runs/
 
@@ -124,3 +127,124 @@ runs/
 # Videos
 /data/videos/*
 !/data/videos/placeholder.txt
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Model files and weights
+models/*.h5
+models/*.pt
+models/*.pth
+models/*.pkl
+models/*.onnx
+models/*.pb
+!models/.gitkeep
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+face_recognition*.db
+
+# Logs and monitoring
+logs/
+*.log.*
+monitoring/
+metrics/
+
+# Cache and temporary files
+.cache/
+*.tmp
+*.temp
+temp/
+tmp/
+cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Output and results
+output/
+results/
+exports/
+processed/
+*.csv
+*.json.gz
+
+# Uploads and user data
+uploads/
+user_data/
+
+# Benchmark results
+benchmark_results/
+performance_reports/
+
+# Security and secrets
+.env.local
+.env.*.local
+secrets/
+*.key
+*.pem
+*.crt
+
+# Documentation build
+docs/_build/
+docs/site/
+_build/
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# CI/CD artifacts
+.github/workflows/*.log
+*.artifact
+
+# OS specific
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Python virtual environments
+.python-version
+poetry.lock
+Pipfile.lock
+
+# Jupyter checkpoints and outputs
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# Type checking
+.pytype/
+.pyre/
+pyrightconfig.json
+
+# Profiling
+*.prof
+*.lprof
+profile_output/
+
+# Coverage reports
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+.nyc_output/
+
+# Testing
+.tox/
+.pytest_cache/
+test_output/
+test_results/
+
+# Build artifacts
+*.whl
+*.tar.gz
+*.zip
