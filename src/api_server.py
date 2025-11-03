@@ -18,6 +18,12 @@ import os
 import logging
 from datetime import datetime
 
+# Rate limiting middleware (simple in-memory)
+try:
+    from rate_limiter import RateLimitMiddleware
+except Exception:
+    RateLimitMiddleware = None
+
 # Import face recognition components
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -84,6 +90,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Attach rate limiter middleware if available
+if RateLimitMiddleware is not None:
+    app.add_middleware(RateLimitMiddleware)
 
 # Global components
 db_manager = None
