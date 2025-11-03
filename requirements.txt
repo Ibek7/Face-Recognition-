@@ -47,3 +47,5 @@ uvicorn
 sqlalchemy
 # Async support
 aiofiles
+# Monitoring
+prometheus-client

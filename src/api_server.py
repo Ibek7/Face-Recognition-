@@ -5,7 +5,7 @@ Provides REST API endpoints for face recognition operations.
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, PlainTextResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import numpy as np
@@ -17,12 +17,20 @@ import tempfile
 import os
 import logging
 from datetime import datetime
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
 # Rate limiting middleware (simple in-memory)
 try:
     from rate_limiter import RateLimitMiddleware
 except Exception:
     RateLimitMiddleware = None
+
+# Prometheus metrics
+REQUEST_COUNT = Counter('api_requests_total', 'Total API requests', ['method', 'endpoint', 'status'])
+REQUEST_DURATION = Histogram('api_request_duration_seconds', 'API request duration', ['method', 'endpoint'])
+ACTIVE_CONNECTIONS = Gauge('api_active_connections', 'Number of active connections')
+RECOGNITION_COUNT = Counter('face_recognition_total', 'Total face recognition operations')
+DETECTION_COUNT = Counter('face_detection_total', 'Total face detections', ['status'])
 
 # Import face recognition components
 import sys
@@ -557,6 +565,18 @@ async def get_performance_metrics():
     }
     
     return metrics
+
+@app.get("/metrics")
+async def metrics():
+    """
+    Prometheus metrics endpoint.
+    
+    Returns metrics in Prometheus text format for scraping.
+    """
+    return PlainTextResponse(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 if __name__ == "__main__":
     import uvicorn
