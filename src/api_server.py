@@ -235,9 +235,24 @@ async def get_version():
     }
 
 @app.get("/health")
-async def health_check():
-    """A simple health check endpoint."""
-    return {"status": "ok"}
+async def health_check(db: DatabaseManager = Depends(get_database)):
+    """
+    Health check endpoint.
+    Checks database connectivity and returns system status.
+    """
+    try:
+        # Check database connection
+        db.get_session().execute("SELECT 1")
+        db_status = "ok"
+    except Exception as e:
+        logger.error(f"Health check failed: Database connection error: {e}")
+        db_status = "error"
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "error", "database_status": "unhealthy"},
+        )
+
+    return {"status": "ok", "database_status": db_status}
 
 @app.get("/stats", response_model=SystemStats)
 async def get_system_stats(db: DatabaseManager = Depends(get_database)):
