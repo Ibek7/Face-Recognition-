@@ -80,6 +80,19 @@ class DatabaseManager:
             if active_only:
                 query = query.filter(Person.is_active == True)
             return query.all()
+
+    def list_persons_paginated(
+        self, page: int = 1, page_size: int = 10, active_only: bool = True
+    ) -> Tuple[List[Person], int]:
+        """List all persons in the database with pagination."""
+        with self.get_session() as session:
+            query = session.query(Person)
+            if active_only:
+                query = query.filter(Person.is_active == True)
+
+            total = query.count()
+            items = query.offset((page - 1) * page_size).limit(page_size).all()
+            return items, total
     
     def add_face_embedding(self, 
                           embedding: np.ndarray,
