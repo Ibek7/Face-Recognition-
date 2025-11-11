@@ -235,94 +235,9 @@ async def get_version():
     }
 
 @app.get("/health")
-async def health_check(db: DatabaseManager = Depends(get_database)):
-    """
-    Comprehensive health check endpoint.
-    
-    Returns system status, database connectivity, uptime, and resource usage.
-    """
-    health_status = {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "uptime": str(datetime.now() - server_start_time),
-        "version": "1.0.0"
-    }
-    
-    # Check database connectivity
-    try:
-        db.get_recognition_stats()
-        health_status["database"] = {
-            "status": "connected",
-            "type": "operational"
-        }
-    except Exception as e:
-        health_status["status"] = "degraded"
-        health_status["database"] = {
-            "status": "error",
-            "error": str(e)
-        }
-        logger.error(f"Database health check failed: {str(e)}")
-    
-    # Check embedding manager
-    try:
-        embedding_mgr = get_embedding_manager()
-        health_status["embedding_manager"] = {
-            "status": "ready",
-            "encoder_type": embedding_mgr.encoder_type if hasattr(embedding_mgr, 'encoder_type') else "unknown"
-        }
-    except Exception as e:
-        health_status["status"] = "degraded"
-        health_status["embedding_manager"] = {
-            "status": "error",
-            "error": str(e)
-        }
-        logger.error(f"Embedding manager health check failed: {str(e)}")
-    
-    # Get system metrics
-    try:
-        sys_metrics = performance_monitor.get_system_metrics_summary()
-        health_status["system_metrics"] = sys_metrics
-    except Exception as e:
-        logger.warning(f"Could not retrieve system metrics: {str(e)}")
-        health_status["system_metrics"] = {"status": "unavailable"}
-    
-    return health_status
-
-@app.get("/health/live")
-async def liveness_check():
-    """
-    Kubernetes liveness probe endpoint.
-    
-    Returns 200 if the application is running.
-    """
-    return {"status": "alive", "timestamp": datetime.now().isoformat()}
-
-@app.get("/health/ready")
-async def readiness_check(db: DatabaseManager = Depends(get_database)):
-    """
-    Kubernetes readiness probe endpoint.
-    
-    Returns 200 if the application is ready to serve requests.
-    """
-    try:
-        # Verify critical components
-        db.get_recognition_stats()
-        embedding_mgr = get_embedding_manager()
-        
-        return {
-            "status": "ready",
-            "timestamp": datetime.now().isoformat(),
-            "components": {
-                "database": "ready",
-                "embedding_manager": "ready"
-            }
-        }
-    except Exception as e:
-        logger.error(f"Readiness check failed: {str(e)}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Service not ready: {str(e)}"
-        )
+async def health_check():
+    """A simple health check endpoint."""
+    return {"status": "ok"}
 
 @app.get("/stats", response_model=SystemStats)
 async def get_system_stats(db: DatabaseManager = Depends(get_database)):
