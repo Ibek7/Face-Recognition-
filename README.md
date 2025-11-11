@@ -1,5 +1,7 @@
 # Face Recognition System
 
+[![CI/CD Pipeline](https://github.com/Ibek7/Face-Recognition-/actions/workflows/ci.yml/badge.svg)](https://github.com/Ibek7/Face-Recognition-/actions/workflows/ci.yml)
+
 A comprehensive face recognition application with real-time detection, embedding generation, and REST API capabilities. Built with OpenCV, FastAPI, and modern machine learning techniques.
 
 ## ✨ Features
