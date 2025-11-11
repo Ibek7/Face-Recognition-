@@ -124,6 +124,7 @@ wheel==0.42.0
 # ==========================================
 commitizen==3.13.0  # Commit message standard
 bump2version==1.0.1  # Version bumping
+gitpython==3.1.40
 
 # ==========================================
 # Notebook Development
