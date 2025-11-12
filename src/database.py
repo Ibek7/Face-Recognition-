@@ -14,8 +14,8 @@ from pathlib import Path
 import json
 from datetime import datetime
 
-from .models import Base, Person, FaceEmbedding, RecognitionResult, Dataset, ProcessingJob
-from .similarity import FaceSimilarity, DistanceMetric
+from src.models import Base, Person, FaceEmbedding, RecognitionResult, Dataset, ProcessingJob
+from src.similarity import FaceSimilarity, DistanceMetric
 
 logger = logging.getLogger(__name__)
 

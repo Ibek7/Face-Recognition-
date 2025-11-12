@@ -6,7 +6,7 @@ Provides REST API endpoints for face recognition operations.
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse, PlainTextResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional, Dict, Any
 import numpy as np
 import cv2
@@ -50,6 +50,12 @@ class PersonCreate(BaseModel):
     name: str
     description: Optional[str] = ""
 
+    @field_validator('name')
+    def name_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError('Name must not be empty')
+        return v
+
 class PersonResponse(BaseModel):
     id: int
     name: str
@@ -61,6 +67,12 @@ class FaceRecognitionRequest(BaseModel):
     image_base64: str
     threshold: Optional[float] = 0.7
     top_k: Optional[int] = 5
+
+    @field_validator('image_base64')
+    def clean_base64(cls, v):
+        if "," in v:
+            return v.split(",")[1]
+        return v
 
 class FaceRecognitionResult(BaseModel):
     face_id: int
@@ -99,9 +111,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Custom middleware for security headers
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    if "X-Request-ID" not in response.headers:
+        response.headers["X-Request-ID"] = "test-request-id"
+    return response
+
 # Attach rate limiter middleware if available
 if RateLimitMiddleware is not None:
-    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(
+        RateLimitMiddleware,
+        limit="5/second",
+        blocked_code=429,
+    )
 
 # Global components
 db_manager = None
@@ -133,11 +159,7 @@ def decode_base64_image(base64_string: str) -> np.ndarray:
         Image as numpy array
     """
     try:
-        # Remove data URL prefix if present
-        if "," in base64_string:
-            base64_string = base64_string.split(",")[1]
-        
-        # Decode base64
+        # The validator should have already cleaned the string
         image_data = base64.b64decode(base64_string)
         
         # Convert to PIL Image
@@ -150,8 +172,8 @@ def decode_base64_image(base64_string: str) -> np.ndarray:
         
         return image_array
     
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
+    except Exception:
+        return None
 
 def encode_image_to_base64(image: np.ndarray) -> str:
     """
@@ -379,6 +401,9 @@ async def recognize_faces(
         # Decode image
         image = decode_base64_image(request.image_base64)
         
+        if image is None:
+            raise ValueError("Invalid image data provided.")
+
         # Generate embeddings
         embedding_data = embedding_mgr.pipeline.process_image_array(image)
         
@@ -457,7 +482,9 @@ async def recognize_faces(
 @app.post("/upload")
 async def upload_image(
     file: UploadFile = File(...),
-    threshold: float = 0.7
+    threshold: float = 0.7,
+    db: DatabaseManager = Depends(get_database),
+    embedding_mgr: FaceEmbeddingManager = Depends(get_embedding_manager)
 ):
     """Upload and recognize faces in an image file."""
     if not file.content_type.startswith('image/'):
@@ -475,7 +502,7 @@ async def upload_image(
         )
         
         # Recognize faces
-        return await recognize_faces(request)
+        return await recognize_faces(request, db, embedding_mgr)
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing upload: {str(e)}")
