@@ -5,17 +5,14 @@ Provides live face detection, recognition, and visualization.
 
 import cv2
 import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
-import logging
 import time
-from threading import Thread, Event
-import queue
-from pathlib import Path
+import logging
+from typing import List, Dict, Any, Optional, Tuple
 
-from .pipeline import FaceProcessingPipeline
-from .embeddings import FaceEmbeddingManager
-from .database import DatabaseManager
-from .similarity import FaceSimilarity, DistanceMetric
+from src.database import DatabaseManager
+from src.embeddings import FaceEmbeddingManager
+from src.pipeline import FaceProcessingPipeline
+from src.similarity import FaceSimilarity, DistanceMetric
 
 logger = logging.getLogger(__name__)
 
