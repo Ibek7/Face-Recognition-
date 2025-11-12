@@ -83,10 +83,15 @@ class FaceRecognitionResult(BaseModel):
     bounding_box: List[int]
 
 class FaceRecognitionResponse(BaseModel):
-    success: bool
-    faces: List[FaceRecognitionResult]
-    processing_time: float
-    message: Optional[str] = None
+    results: List[FaceRecognitionResult]
+    message: str
+
+class PaginatedPersonResponse(BaseModel):
+    items: List[PersonResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 class SystemStats(BaseModel):
     total_persons: int
@@ -533,6 +538,49 @@ async def metrics():
     return PlainTextResponse(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST
+    )
+
+@app.get("/api/v1/persons", response_model=PaginatedPersonResponse)
+async def list_persons_paginated(
+    page: int = 1,
+    page_size: int = 10,
+    db: DatabaseManager = Depends(get_database)
+):
+    """
+    Get a paginated list of all persons.
+    """
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page number must be 1 or greater.")
+    if not 1 <= page_size <= 100:
+        raise HTTPException(status_code=400, detail="Page size must be between 1 and 100.")
+        
+    try:
+        persons, total = db.list_persons_paginated(page=page, page_size=page_size)
+        
+        return {
+            "items": persons,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.get("/persons/{person_id}", response_model=PersonResponse)
+async def get_person(person_id: int, db: DatabaseManager = Depends(get_database)):
+    """Get detailed information about a person."""
+    person = db.get_person(person_id)
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+    
+    return PersonResponse(
+        id=person.id,
+        name=person.name,
+        description=person.description,
+        created_at=person.created_at.isoformat(),
+        is_active=person.is_active
     )
 
 if __name__ == "__main__":
