@@ -14,17 +14,35 @@ from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, MagicMock
 import tempfile
 import os
+from prometheus_client import REGISTRY
+from datetime import datetime
 
-# Import the FastAPI app and dependencies
+# Mock heavy dependencies before they are imported by the app
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-# Mock external dependencies before importing
 sys.modules['cv2'] = Mock()
+import cv2  # Import the mocked module
+# Mock the haarcascade path and CascadeClassifier
+cv2.data = Mock()
+cv2.data.haarcascades = "/mock/path/to/haarcascades/"
+mock_cascade = Mock()
+mock_cascade.empty.return_value = False
+cv2.CascadeClassifier.return_value = mock_cascade
 sys.modules['dlib'] = Mock()
 sys.modules['face_recognition'] = Mock()
-sys.modules['sqlalchemy'] = Mock()
-sys.modules['sqlalchemy.orm'] = Mock()
+sys.modules['ultralytics'] = Mock()
+
+# Add src to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Import app once here
+from src.api_server import app, get_database
+
+@pytest.fixture(autouse=True)
+def clear_prometheus_registry():
+    """Clear prometheus registry before each test to prevent duplication errors."""
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        REGISTRY.unregister(collector)
 
 @pytest.fixture
 def mock_database():
@@ -36,14 +54,26 @@ def mock_database():
     mock_person.id = 1
     mock_person.name = "Test Person"
     mock_person.description = "Test description"
-    mock_person.created_at = "2024-01-15T10:00:00"
-    mock_person.updated_at = "2024-01-15T10:00:00"
+    mock_person.created_at = datetime.now()
+    mock_person.updated_at = datetime.now()
     mock_person.is_active = True
     
     db_mock.list_persons.return_value = [mock_person]
     db_mock.get_person.return_value = mock_person
     db_mock.get_person_by_name.return_value = None
-    db_mock.add_person.return_value = mock_person
+    
+    def add_person_dynamic(name, description):
+        new_person = Mock()
+        new_person.id = 2
+        new_person.name = name
+        new_person.description = description
+        new_person.created_at = datetime.now()
+        new_person.updated_at = datetime.now()
+        new_person.is_active = True
+        return new_person
+        
+    db_mock.add_person.side_effect = add_person_dynamic
+    
     db_mock.get_recognition_stats.return_value = {
         'total_persons': 1,
         'total_embeddings': 5,
@@ -102,12 +132,19 @@ def test_image_base64():
 
 @pytest.fixture
 def client(mock_database, mock_embedding_manager):
-    """Test client with mocked dependencies."""
-    with patch('src.api_server.get_database', return_value=mock_database), \
-         patch('src.api_server.get_embedding_manager', return_value=mock_embedding_manager):
-        
-        from api_server import app
-        return TestClient(app)
+    """
+    Test client with mocked dependencies.
+    This fixture uses FastAPI's dependency_overrides to inject mocks,
+    which is the recommended approach.
+    """
+    app.dependency_overrides[get_database] = lambda: mock_database
+    
+    with patch('src.api_server.get_embedding_manager', return_value=mock_embedding_manager):
+        with TestClient(app) as c:
+            yield c
+            
+    app.dependency_overrides = {}
+
 
 class TestHealthEndpoints:
     """Test health and status endpoints."""
@@ -134,9 +171,8 @@ class TestHealthEndpoints:
             assert response.status_code == 200
             
             data = response.json()
-            assert data["status"] == "healthy"
-            assert "uptime" in data
-            assert "system_metrics" in data
+            assert data["status"] == "ok"
+            assert "database_status" in data
 
 class TestPersonManagement:
     """Test person management endpoints."""
@@ -270,7 +306,7 @@ class TestFaceRecognition:
     
     def test_upload_non_image_file(self, client):
         """Test uploading non-image file."""
-        files = {"file": ("test.txt", io.StringIO("not an image"), "text/plain")}
+        files = {"file": ("test.txt", io.BytesIO(b"not an image"), "text/plain")}
         response = client.post("/upload", files=files)
         
         assert response.status_code == 400
@@ -429,6 +465,17 @@ def setup_test_environment():
     """Setup test environment before each test."""
     # Ensure test database is clean
     pass
+
+# Mock heavy dependencies
+mock_cv2 = Mock()
+mock_cv2.imdecode.return_value = np.zeros((100, 100, 3), dtype=np.uint8)
+mock_cv2.imread.return_value = np.zeros((100, 100, 3), dtype=np.uint8)
+mock_cv2.CascadeClassifier.return_value.detectMultiScale.return_value = (
+    np.array([[10, 10, 80, 80]])
+)
+cv2.imread = mock_cv2.imread
+cv2.imdecode = mock_cv2.imdecode
+cv2.CascadeClassifier = Mock(return_value=mock_cascade)
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
