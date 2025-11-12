@@ -125,6 +125,9 @@ test-watch: ## Run tests in watch mode
 # Application
 # ========================================
 
+.PHONY: run
+run: run-api ## Start the API server (alias for run-api)
+
 .PHONY: run-api
 run-api: ## Start the API server
 	@echo "$(BLUE)Starting API server...$(NC)"
@@ -170,6 +173,12 @@ docker-clean: ## Clean Docker images and containers
 	@echo "$(BLUE)Cleaning Docker resources...$(NC)"
 	docker system prune -f
 	@echo "$(GREEN)✓ Docker cleaned$(NC)"
+
+.PHONY: docker-build-prod
+docker-build-prod: ## Build production Docker image
+	@echo "$(BLUE)Building production Docker image...$(NC)"
+	docker build -f Dockerfile.prod -t $(DOCKER_IMAGE):$(DOCKER_TAG)-prod .
+	@echo "$(GREEN)✓ Production Docker image built$(NC)"
 
 # ========================================
 # Database
