@@ -13,6 +13,7 @@ import logging
 from pathlib import Path
 import json
 from datetime import datetime
+from functools import lru_cache
 
 from src.models import Base, Person, FaceEmbedding, RecognitionResult, Dataset, ProcessingJob
 from src.similarity import FaceSimilarity, DistanceMetric
@@ -67,9 +68,11 @@ class DatabaseManager:
         """Get person by ID."""
         with self.get_session() as session:
             return session.query(Person).filter(Person.id == person_id).first()
-    
+
+    @lru_cache(maxsize=128)
     def get_person_by_name(self, name: str) -> Optional[Person]:
-        """Get person by name."""
+        """Get person by name (cached)."""
+        logger.info(f"Cache miss for get_person_by_name: {name}")
         with self.get_session() as session:
             return session.query(Person).filter(Person.name == name).first()
     
