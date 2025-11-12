@@ -126,3 +126,20 @@ class SimpleEmbeddingEncoder(FaceEncoder):
     def encode_faces(self, face_images: List[np.ndarray]) -> List[np.ndarray]:
         """Generate face encodings for multiple images."""
         return [self.encode_face(face_img) for face_img in face_images]
+
+def FaceEncoderFactory(encoder_type: str = "dlib") -> FaceEncoder:
+    """
+    Factory function to create face encoders.
+    
+    Args:
+        encoder_type: Type of encoder ('dlib' or 'simple')
+        
+    Returns:
+        An instance of a FaceEncoder
+    """
+    if encoder_type == "dlib":
+        return DlibFaceEncoder()
+    elif encoder_type == "simple":
+        return SimpleEmbeddingEncoder()
+    else:
+        raise ValueError(f"Unknown encoder type: {encoder_type}")

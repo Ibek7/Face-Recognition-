@@ -4,14 +4,14 @@ Combines face detection, preprocessing, and encoding into unified workflow.
 """
 
 import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
+
+from src.pipeline import FaceProcessingPipeline
+from src.similarity import FaceSimilarity, DistanceMetric
+from src.encoders import SimpleEmbeddingEncoder, DlibFaceEncoder
 import logging
 from pathlib import Path
 import cv2
-
-from .pipeline import FaceProcessingPipeline
-from .encoders import FaceEncoder, DlibFaceEncoder, SimpleEmbeddingEncoder
-from .similarity import FaceSimilarity, DistanceMetric
 
 logger = logging.getLogger(__name__)
 
