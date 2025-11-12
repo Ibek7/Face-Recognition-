@@ -3,7 +3,7 @@ FastAPI server for face recognition system.
 Provides REST API endpoints for face recognition operations.
 """
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse, PlainTextResponse
 from pydantic import BaseModel, field_validator
@@ -125,6 +125,22 @@ async def add_security_headers(request, call_next):
     if "X-Request-ID" not in response.headers:
         response.headers["X-Request-ID"] = "test-request-id"
     return response
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail},
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    # Log the exception for debugging
+    logger.error(f"Unhandled exception for {request.method} {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "An internal server error occurred."},
+    )
 
 # Attach rate limiter middleware if available
 if RateLimitMiddleware is not None:
