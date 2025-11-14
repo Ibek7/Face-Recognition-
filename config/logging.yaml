@@ -1,0 +1,402 @@
+# Logging Configuration
+#
+# Centralized logging configuration for the face recognition system.
+# Supports structured logging, multiple handlers, and log aggregation.
+
+version: 1
+disable_existing_loggers: false
+
+# Formatters define the format of log messages
+formatters:
+  # Simple text format for development
+  simple:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  
+  # Detailed format with more context
+  detailed:
+    format: '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  
+  # JSON format for structured logging (production)
+  json:
+    class: pythonjsonlogger.jsonlogger.JsonFormatter
+    format: '%(asctime)s %(name)s %(levelname)s %(funcName)s %(lineno)d %(message)s'
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+  
+  # Access log format (HTTP requests)
+  access:
+    format: '%(asctime)s - %(client_addr)s - "%(request_line)s" %(status_code)s %(response_time)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+# Filters for conditional logging
+filters:
+  # Filter to add request context
+  request_context:
+    (): src.advanced_logging.RequestContextFilter
+  
+  # Filter to exclude health check logs
+  exclude_health_checks:
+    (): src.advanced_logging.ExcludeHealthChecksFilter
+  
+  # Rate limiting filter to prevent log flooding
+  rate_limit:
+    (): src.advanced_logging.RateLimitFilter
+    rate: 100  # Max 100 logs per second
+    per: 1
+
+# Handlers define where logs are sent
+handlers:
+  # Console output (stdout)
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: simple
+    stream: ext://sys.stdout
+    filters: [request_context]
+  
+  # Console output with colors (development)
+  console_colored:
+    class: coloredlogs.ColoredFormatter
+    level: DEBUG
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    stream: ext://sys.stdout
+  
+  # File handler for general logs
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: detailed
+    filename: logs/app.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 10
+    encoding: utf8
+    filters: [request_context, rate_limit]
+  
+  # File handler for error logs
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: json
+    filename: logs/error.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 20
+    encoding: utf8
+    filters: [request_context]
+  
+  # File handler for access logs (HTTP requests)
+  access_file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: access
+    filename: logs/access.log
+    when: midnight
+    interval: 1
+    backupCount: 30
+    encoding: utf8
+    filters: [exclude_health_checks]
+  
+  # File handler for audit logs (security events)
+  audit_file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: logs/audit.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 90  # Keep 90 backups for compliance
+    encoding: utf8
+  
+  # Syslog handler for centralized logging
+  syslog:
+    class: logging.handlers.SysLogHandler
+    level: WARNING
+    formatter: json
+    address: ['localhost', 514]
+    facility: local0
+  
+  # SMTP handler for critical errors
+  email:
+    class: logging.handlers.SMTPHandler
+    level: CRITICAL
+    formatter: detailed
+    mailhost: ['smtp.gmail.com', 587]
+    fromaddr: noreply@facerecognition.com
+    toaddrs: ['admin@facerecognition.com', 'oncall@facerecognition.com']
+    subject: 'CRITICAL: Face Recognition System Error'
+    credentials: ['${SMTP_USER}', '${SMTP_PASSWORD}']
+    secure: []
+  
+  # Null handler (discard logs)
+  null:
+    class: logging.NullHandler
+
+# Loggers define logging behavior for different modules
+loggers:
+  # Root logger (catch-all)
+  root:
+    level: INFO
+    handlers: [console, file, error_file]
+    propagate: false
+  
+  # Application loggers
+  src:
+    level: DEBUG
+    handlers: [console, file, error_file]
+    propagate: false
+  
+  # API server logs
+  src.api_server:
+    level: INFO
+    handlers: [console, file, access_file]
+    propagate: false
+  
+  # Database logs
+  src.database:
+    level: INFO
+    handlers: [file]
+    propagate: false
+  
+  # Model inference logs
+  src.detection:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  
+  src.recognition:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  
+  # Security and audit logs
+  src.security:
+    level: INFO
+    handlers: [audit_file, file]
+    propagate: false
+  
+  src.audit_compliance:
+    level: INFO
+    handlers: [audit_file]
+    propagate: false
+  
+  # Performance monitoring logs
+  src.monitoring:
+    level: INFO
+    handlers: [file]
+    propagate: false
+  
+  src.performance_profiling:
+    level: DEBUG
+    handlers: [file]
+    propagate: false
+  
+  # Third-party library logs
+  uvicorn:
+    level: INFO
+    handlers: [access_file]
+    propagate: false
+  
+  uvicorn.access:
+    level: INFO
+    handlers: [access_file]
+    propagate: false
+  
+  uvicorn.error:
+    level: WARNING
+    handlers: [error_file]
+    propagate: false
+  
+  fastapi:
+    level: INFO
+    handlers: [file]
+    propagate: false
+  
+  sqlalchemy:
+    level: WARNING
+    handlers: [file]
+    propagate: false
+  
+  sqlalchemy.engine:
+    level: WARNING
+    handlers: [file]
+    propagate: false
+  
+  boto3:
+    level: WARNING
+    handlers: [file]
+    propagate: false
+  
+  botocore:
+    level: WARNING
+    handlers: [file]
+    propagate: false
+  
+  # Disable noisy loggers
+  PIL:
+    level: WARNING
+    handlers: [null]
+    propagate: false
+  
+  matplotlib:
+    level: WARNING
+    handlers: [null]
+    propagate: false
+
+# Environment-specific overrides
+development:
+  loggers:
+    root:
+      level: DEBUG
+      handlers: [console_colored, file]
+    src:
+      level: DEBUG
+      handlers: [console_colored, file]
+  handlers:
+    console:
+      level: DEBUG
+
+staging:
+  loggers:
+    root:
+      level: INFO
+      handlers: [console, file, error_file, syslog]
+    src:
+      level: INFO
+      handlers: [console, file, error_file]
+  handlers:
+    file:
+      formatter: json
+
+production:
+  loggers:
+    root:
+      level: INFO
+      handlers: [console, file, error_file, syslog, email]
+    src:
+      level: INFO
+      handlers: [console, file, error_file, syslog]
+  handlers:
+    console:
+      level: WARNING
+      formatter: json
+    file:
+      formatter: json
+    error_file:
+      formatter: json
+
+# Log aggregation settings
+aggregation:
+  # Enable log aggregation
+  enabled: true
+  
+  # Aggregation backends
+  backends:
+    # Elasticsearch
+    elasticsearch:
+      enabled: false
+      hosts: ['${ELASTICSEARCH_HOST:localhost:9200}']
+      index_prefix: 'face-recognition-logs'
+      timeout: 30
+    
+    # CloudWatch Logs
+    cloudwatch:
+      enabled: false
+      log_group: '/aws/face-recognition'
+      stream_name: 'api-server'
+      region: 'us-east-1'
+    
+    # Google Cloud Logging
+    gcp:
+      enabled: false
+      project_id: '${GCP_PROJECT_ID}'
+      log_name: 'face-recognition'
+    
+    # Azure Monitor
+    azure:
+      enabled: false
+      workspace_id: '${AZURE_WORKSPACE_ID}'
+      workspace_key: '${AZURE_WORKSPACE_KEY}'
+
+# Structured logging fields
+structured_fields:
+  # Always include these fields in structured logs
+  static:
+    service: 'face-recognition'
+    version: '${APP_VERSION:1.0.0}'
+    environment: '${ENVIRONMENT:development}'
+  
+  # Dynamic fields to extract from context
+  dynamic:
+    - request_id
+    - user_id
+    - session_id
+    - client_ip
+    - endpoint
+    - method
+    - status_code
+    - response_time
+    - model_version
+
+# Performance settings
+performance:
+  # Use async logging for better performance
+  async: true
+  
+  # Queue size for async logging
+  queue_size: 10000
+  
+  # Batch size for bulk operations
+  batch_size: 100
+  
+  # Flush interval (seconds)
+  flush_interval: 5
+
+# Sampling (reduce log volume)
+sampling:
+  # Enable log sampling
+  enabled: false
+  
+  # Sample rate (0.0 to 1.0)
+  rate: 0.1
+  
+  # Exclude from sampling (always log these)
+  exclude_levels: [ERROR, CRITICAL]
+  exclude_loggers: [src.security, src.audit_compliance]
+
+# Security settings
+security:
+  # Mask sensitive data in logs
+  mask_sensitive: true
+  
+  # Fields to mask
+  sensitive_fields:
+    - password
+    - token
+    - api_key
+    - secret
+    - authorization
+    - credit_card
+    - ssn
+  
+  # Redaction pattern
+  redaction_pattern: '***REDACTED***'
+
+# Retention policies
+retention:
+  # Default retention (days)
+  default: 30
+  
+  # Retention by log type
+  by_type:
+    access: 7
+    error: 90
+    audit: 365
+    security: 730
+  
+  # Compression after days
+  compress_after: 7
+  
+  # Archive old logs
+  archive:
+    enabled: true
+    path: 'logs/archive'
+    format: 'tar.gz'
