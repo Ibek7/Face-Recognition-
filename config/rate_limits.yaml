@@ -1,0 +1,230 @@
+# API Rate Limiting Configuration
+#
+# This configuration defines rate limits for different API endpoints
+# to prevent abuse and ensure fair usage across all clients.
+
+# Global rate limit settings
+global:
+  # Default rate limit for all endpoints (requests per minute)
+  default_limit: 60
+  # Time window in seconds
+  window: 60
+  # Enable rate limiting globally
+  enabled: true
+  # Rate limit storage backend (memory, redis)
+  storage: "redis"
+  # Redis configuration (if storage is redis)
+  redis:
+    host: "${REDIS_HOST:localhost}"
+    port: ${REDIS_PORT:6379}
+    db: 1
+    password: "${REDIS_PASSWORD:}"
+    key_prefix: "ratelimit:"
+
+# Rate limit tiers for different user types
+tiers:
+  anonymous:
+    # Limits for unauthenticated requests
+    requests_per_minute: 10
+    requests_per_hour: 100
+    requests_per_day: 500
+    burst_size: 5
+    
+  authenticated:
+    # Limits for authenticated users
+    requests_per_minute: 60
+    requests_per_hour: 1000
+    requests_per_day: 10000
+    burst_size: 20
+    
+  premium:
+    # Limits for premium/paid users
+    requests_per_minute: 300
+    requests_per_hour: 10000
+    requests_per_day: 100000
+    burst_size: 100
+    
+  internal:
+    # Limits for internal services (minimal restrictions)
+    requests_per_minute: 1000
+    requests_per_hour: 50000
+    requests_per_day: 500000
+    burst_size: 500
+
+# Endpoint-specific rate limits
+endpoints:
+  # Face detection endpoint
+  "/api/detect":
+    anonymous:
+      requests_per_minute: 5
+      requests_per_hour: 50
+    authenticated:
+      requests_per_minute: 30
+      requests_per_hour: 500
+    premium:
+      requests_per_minute: 150
+      requests_per_hour: 5000
+    # Cost multiplier (higher for resource-intensive endpoints)
+    cost_multiplier: 2
+    
+  # Face recognition endpoint
+  "/api/recognize":
+    anonymous:
+      requests_per_minute: 5
+      requests_per_hour: 50
+    authenticated:
+      requests_per_minute: 30
+      requests_per_hour: 500
+    premium:
+      requests_per_minute: 150
+      requests_per_hour: 5000
+    cost_multiplier: 2
+    
+  # Batch processing endpoints (more restrictive)
+  "/api/batch/detect":
+    anonymous:
+      requests_per_minute: 1
+      requests_per_hour: 10
+    authenticated:
+      requests_per_minute: 5
+      requests_per_hour: 50
+    premium:
+      requests_per_minute: 20
+      requests_per_hour: 200
+    cost_multiplier: 5
+    
+  "/api/batch/recognize":
+    anonymous:
+      requests_per_minute: 1
+      requests_per_hour: 10
+    authenticated:
+      requests_per_minute: 5
+      requests_per_hour: 50
+    premium:
+      requests_per_minute: 20
+      requests_per_hour: 200
+    cost_multiplier: 5
+    
+  # Person management endpoints (lighter limits)
+  "/api/persons":
+    anonymous:
+      requests_per_minute: 10
+      requests_per_hour: 100
+    authenticated:
+      requests_per_minute: 60
+      requests_per_hour: 1000
+    premium:
+      requests_per_minute: 300
+      requests_per_hour: 10000
+    cost_multiplier: 1
+    
+  "/api/persons/{id}":
+    anonymous:
+      requests_per_minute: 15
+      requests_per_hour: 150
+    authenticated:
+      requests_per_minute: 100
+      requests_per_hour: 2000
+    premium:
+      requests_per_minute: 500
+      requests_per_hour: 20000
+    cost_multiplier: 1
+    
+  # Health and metrics endpoints (minimal restrictions)
+  "/health":
+    anonymous:
+      requests_per_minute: 100
+      requests_per_hour: 1000
+    cost_multiplier: 0.1
+    
+  "/metrics":
+    anonymous:
+      requests_per_minute: 30
+      requests_per_hour: 300
+    authenticated:
+      requests_per_minute: 60
+      requests_per_hour: 1000
+    cost_multiplier: 0.5
+
+# Rate limit response configuration
+response:
+  # HTTP status code for rate limit exceeded
+  status_code: 429
+  # Response headers
+  headers:
+    # Include rate limit info in headers
+    include_limit_headers: true
+    # Header names
+    limit_header: "X-RateLimit-Limit"
+    remaining_header: "X-RateLimit-Remaining"
+    reset_header: "X-RateLimit-Reset"
+    retry_after_header: "Retry-After"
+  # Error message template
+  error_message: "Rate limit exceeded. Please try again in {retry_after} seconds."
+  # Include detailed info in response body
+  include_details: true
+
+# IP-based restrictions
+ip_restrictions:
+  # Enable IP-based rate limiting
+  enabled: true
+  # Whitelist (IPs exempt from rate limiting)
+  whitelist:
+    - "127.0.0.1"
+    - "::1"
+    # Add internal network ranges
+    # - "10.0.0.0/8"
+    # - "172.16.0.0/12"
+  # Blacklist (IPs completely blocked)
+  blacklist: []
+  # Max requests per IP per minute (global)
+  max_requests_per_ip: 100
+
+# Advanced features
+features:
+  # Enable sliding window algorithm (more accurate but higher memory usage)
+  sliding_window: true
+  # Enable distributed rate limiting (for multi-instance deployments)
+  distributed: true
+  # Enable rate limit bypass for specific API keys
+  api_key_bypass: true
+  # Enable dynamic rate limit adjustment based on system load
+  dynamic_limits: false
+  # Dynamic limit configuration
+  dynamic:
+    # Reduce limits when CPU usage exceeds threshold
+    cpu_threshold: 80
+    # Reduce limits when memory usage exceeds threshold
+    memory_threshold: 85
+    # Reduction factor (multiply limits by this when under pressure)
+    reduction_factor: 0.5
+
+# Monitoring and alerts
+monitoring:
+  # Enable rate limit metrics collection
+  enabled: true
+  # Log rate limit violations
+  log_violations: true
+  # Alert thresholds
+  alerts:
+    # Alert when a single IP hits rate limit this many times
+    violations_per_ip_threshold: 10
+    # Alert when global rate limit hit rate exceeds this percentage
+    global_hit_rate_threshold: 50
+    # Time window for alerts (seconds)
+    alert_window: 300
+
+# Cost-based rate limiting (optional)
+cost_based:
+  # Enable cost-based limiting (different endpoints cost different amounts)
+  enabled: true
+  # Token bucket size per tier
+  buckets:
+    anonymous: 100
+    authenticated: 1000
+    premium: 10000
+  # Refill rate (tokens per second)
+  refill_rate:
+    anonymous: 1
+    authenticated: 10
+    premium: 100
