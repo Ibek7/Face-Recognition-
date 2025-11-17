@@ -1,0 +1,10 @@
+# Development-only dependencies (local)
+pytest>=7.0.0
+pytest-asyncio
+flake8
+black
+isort
+mypy
+bandit
+pre-commit
+httpx
