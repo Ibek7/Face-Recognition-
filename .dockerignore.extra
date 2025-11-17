@@ -1,0 +1,12 @@
+# Extra ignores to supplement .dockerignore
+# Local config and secrets
+.env.local
+.env.*.local
+
+# Optional caches
+.cache/
+.vscode/
+
+# Misc
+.idea/
+*.log
